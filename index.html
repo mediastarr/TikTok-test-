@@ -20,8 +20,8 @@
   --parallax-bg: translateY(0px) scale(1.00);
 
   /* Depth blur */
-  --blur-bg: blur(12px);
-  --blur-mg: blur(6px);
+  --blur-bg: blur(1px);
+  --blur-mg: blur(1px);
   --blur-fg: blur(0px);
 
   /* Depth scaling */
@@ -67,7 +67,7 @@ body {
   min-width: 260px;
   padding: 6px 16px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.28);
+  background: rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow:
     0 0 18px rgba(0, 0, 0, 1),
@@ -127,7 +127,7 @@ body {
   outline: none;
   transform-origin: center;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(1px);
 }
 
 .card .thumb {
@@ -613,9 +613,6 @@ function closeComments() {
 /* -----------------------------------------------------
    PARALLAX (device tilt)
 -----------------------------------------------------*/
-window.addEventListener("deviceorientation", (e) => {
-  const tilt = Math.abs(e.gamma || 0) / 45; // 0–1
-  document.documentElement.style.setProperty("--tilt-blur", `${tilt * 4}px`);
 });
 </script>
 </body>
