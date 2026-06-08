@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=600,height=600,user-scalable=no" />
+<title>TikTok AR HUD</title>
+
+<style>
+/* -----------------------------------------------------
+   AR HUD VARIABLES
+-----------------------------------------------------*/
+:root {
+  --accent: #00f5ff;
+  --text-main: #fff;
+  --text-sub: #9aa0a6;
+
+  /* Parallax */
+  --parallax-fg: translateY(-4px) scale(1.04);
+  --parallax-mg: translateY(-2px) scale(1.02);
+  --parallax-bg: translateY(0px) scale(1.00);
+
+  /* Depth blur */
+  --blur-bg: blur(12px);
+  --blur-mg: blur(6px);
+  --blur-fg: blur(0px);
+
+  /* Depth scaling */
+  --depth-scale-bg: scale(0.96);
+  --depth-scale-mg: scale(0.98);
+  --depth-scale-fg: scale(1.00);
+
+  /* Depth opacity */
+  --depth-opacity-bg: 0.55;
+  --depth-opacity-mg: 0.75;
+  --depth-opacity-fg: 1.00;
+
+  --tilt-blur: 0px;
+}
+
+/* -----------------------------------------------------
+   GLOBAL
+-----------------------------------------------------*/
+body {
+  width: 600px;
+  height: 600px;
+  background: #000; /* transparent on Ray-Ban Display */
+  color: var(--text-main);
+  font-family: system-ui, sans-serif;
+  overflow: hidden;
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  padding-top: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+
+/* -----------------------------------------------------
+   FLOATING TOP PILL
+-----------------------------------------------------*/
+.glassos-topbar {
+  min-width: 260px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 0 18px rgba(0, 0, 0, 1),
+    0 0 14px rgba(0, 245, 255, 0.35);
+
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  filter: blur(calc(12px + var(--tilt-blur)));
+  transform: var(--depth-scale-bg);
+  opacity: var(--depth-opacity-bg);
+  animation: float 6s ease-in-out infinite;
+}
+
+.icon-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent);
+}
+
+.icon-battery {
+  width: 24px;
+  height: 12px;
+  border-radius: 4px;
+  border: 1px solid var(--text-sub);
+}
+
+/* -----------------------------------------------------
+   FEED
+-----------------------------------------------------*/
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+
+  filter: blur(calc(12px + var(--tilt-blur)));
+  transform: var(--depth-scale-bg);
+  opacity: var(--depth-opacity-bg);
+  animation: float 6s ease-in-out infinite;
+}
+
+.card {
+  width: 320px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 0 22px rgba(0, 245, 255, 0.25),
+    0 0 30px rgba(0, 0, 0, 1);
+  display: flex;
+  gap: 12px;
+  outline: none;
+  transform-origin: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  backdrop-filter: blur(4px);
+}
+
+.card .thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
+  background-size: cover;
+  background-position: center;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.card .title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.card .creator {
+  font-size: 12px;
+  color: var(--text-sub);
+}
+
+.card:focus {
+  filter: var(--blur-fg);
+  transform: var(--parallax-fg) scale(1.06);
+  opacity: var(--depth-opacity-fg);
+  box-shadow:
+    0 0 26px rgba(255, 255, 255, 0.45),
+    0 0 20px rgba(0, 245, 255, 0.45);
+  z-index: 10;
+}
+
+/* -----------------------------------------------------
+   DETAIL PANEL
+-----------------------------------------------------*/
+.detail {
+  position: absolute;
+  top: 90px;
+  left: 50%;
+  transform: translateX(-50%) var(--parallax-mg);
+  width: 360px;
+  padding: 16px;
+  border-radius: 22px;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow:
+    0 0 30px rgba(0, 0, 0, 1),
+    0 0 22px rgba(0, 245, 255, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  backdrop-filter: blur(4px);
+
+  filter: blur(calc(6px + var(--tilt-blur) / 2));
+  transform: var(--depth-scale-mg);
+  opacity: var(--depth-opacity-mg);
+}
+
+.detail-video video {
+  width: 100%;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(0, 0, 0, 0.55);
+}
+
+/* -----------------------------------------------------
+   CONTROLS
+-----------------------------------------------------*/
+.detail-controls {
+  display: flex;
+  gap: 8px;
+}
+
+.btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  outline: none;
+  backdrop-filter: blur(4px);
+  box-shadow:
+    0 0 22px rgba(0, 245, 255, 0.25),
+    0 0 30px rgba(0, 0, 0, 1);
+}
+
+.btn:focus {
+  filter: var(--blur-fg);
+  transform: var(--parallax-fg) scale(1.04);
+  opacity: var(--depth-opacity-fg);
+  border-color: #fff;
+  box-shadow:
+    0 0 18px rgba(255, 255, 255, 0.45),
+    0 0 16px rgba(0, 245, 255, 0.45);
+}
+
+/* -----------------------------------------------------
+   COMMENTS PANEL
+-----------------------------------------------------*/
+.comments {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%) var(--parallax-fg);
+  width: 360px;
+  padding: 12px;
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 0 26px rgba(0, 0, 0, 1),
+    0 0 20px rgba(0, 245, 255, 0.35);
+  backdrop-filter: blur(4px);
+
+  filter: var(--blur-fg);
+  transform: var(--depth-scale-fg);
+  opacity: var(--depth-opacity-fg);
+}
+
+.comments-list {
+  max-height: 140px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.comment {
+  padding: 8px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  outline: none;
+}
+
+.comment:focus {
+  border-color: #fff;
+  box-shadow:
+    0 0 16px rgba(255, 255, 255, 0.4),
+    0 0 14px rgba(0, 245, 255, 0.4);
+}
+
+/* -----------------------------------------------------
+   UTILITY
+-----------------------------------------------------*/
+.hidden { display: none; }
+
+@keyframes float {
+  0%   { transform: translateY(0px); }
+  50%  { transform: translateY(-2px); }
+  100% { transform: translateY(0px); }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- FLOATING TOP PILL -->
+  <header class="glassos-topbar">
+    <div class="topbar-left">TikTok</div>
+    <div class="topbar-right">
+      <span class="icon-dot"></span>
+      <span class="icon-battery"></span>
+    </div>
+  </header>
+
+  <!-- FEED (infinite scroll) -->
+  <main id="feed" class="feed"></main>
+
+  <!-- DETAIL PANEL (video player) -->
+  <section id="detail" class="detail hidden">
+    <div class="detail-header">
+      <div id="detail-title"></div>
+      <div id="detail-creator"></div>
+      <div class="likes"><span id="likes-count">0</span> ❤️</div>
+    </div>
+
+    <div class="detail-video">
+      <video id="video-player" playsinline></video>
+    </div>
+
+    <div class="detail-controls">
+      <button class="btn" data-action="play">Play</button>
+      <button class="btn" data-action="like">Like</button>
+      <button class="btn" data-action="comments">Comments</button>
+      <button class="btn" data-action="back">Back</button>
+    </div>
+  </section>
+
+  <!-- COMMENTS PANEL -->
+  <section id="comments-panel" class="comments hidden">
+    <div class="comments-header">
+      <span id="comments-count">Comments</span>
+    </div>
+
+    <div id="comments-list" class="comments-list"></div>
+
+    <div class="comments-footer">
+      <button class="btn" data-action="close-comments">Close</button>
+    </div>
+  </section>
+
+</div>
+<script>
+/* -----------------------------------------------------
+   MOCK DATA (NO BACKEND REQUIRED)
+-----------------------------------------------------*/
+async function fetchFeedPage(page) {
+  return [
+    {
+      id: `video-${page}-1`,
+      title: "City Night Walk",
+      author: "@urbanvibes",
+      cover_url: "https://picsum.photos/200?random=" + Math.random(),
+      play_url: "https://www.w3schools.com/html/mov_bbb.mp4"
+    },
+    {
+      id: `video-${page}-2`,
+      title: "30s Cooking",
+      author: "@quickchef",
+      cover_url: "https://picsum.photos/200?random=" + Math.random(),
+      play_url: "https://www.w3schools.com/html/movie.mp4"
+    },
+    {
+      id: `video-${page}-3`,
+      title: "Dance Challenge",
+      author: "@beatdrop",
+      cover_url: "https://picsum.photos/200?random=" + Math.random(),
+      play_url: "https://www.w3schools.com/html/mov_bbb.mp4"
+    }
+  ];
+}
+
+async function fetchComments(videoId, cursor) {
+  return {
+    comments: [
+      { user_name: "@user1", text: "This is awesome!" },
+      { user_name: "@user2", text: "Love this vibe." },
+      { user_name: "@user3", text: "Watching on Ray-Ban 😎" }
+    ],
+    cursor: cursor + 3,
+    has_more: cursor < 3
+  };
+}
+
+/* -----------------------------------------------------
+   ELEMENTS
+-----------------------------------------------------*/
+const feedEl = document.getElementById("feed");
+const detailEl = document.getElementById("detail");
+const commentsPanel = document.getElementById("comments-panel");
+const commentsList = document.getElementById("comments-list");
+const commentsCount = document.getElementById("comments-count");
+const videoPlayer = document.getElementById("video-player");
+const likesCount = document.getElementById("likes-count");
+
+/* -----------------------------------------------------
+   STATE
+-----------------------------------------------------*/
+let feedIndex = 0;
+let detailIndex = 0;
+let inDetail = false;
+let inComments = false;
+
+let currentPage = 1;
+let isLoading = false;
+let feedItems = [];
+let currentVideoId = null;
+
+let commentsCursor = 0;
+let commentsHasMore = true;
+let commentsFocusIndex = 0;
+
+/* -----------------------------------------------------
+   FEED LOADING
+-----------------------------------------------------*/
+async function loadMoreFeed() {
+  if (isLoading) return;
+  isLoading = true;
+
+  const pageData = await fetchFeedPage(currentPage);
+  pageData.forEach((item) => {
+    const index = feedItems.length;
+    feedItems.push(item);
+    appendCard(item, index);
+  });
+
+  currentPage++;
+  isLoading = false;
+}
+
+function appendCard(item, index) {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.tabIndex = 0;
+  card.dataset.index = index;
+
+  card.innerHTML = `
+    <div class="thumb" style="background-image:url('${item.cover_url}')"></div>
+    <div>
+      <div class="title">${item.title}</div>
+      <div class="creator">${item.author}</div>
+    </div>
+  `;
+
+  feedEl.appendChild(card);
+}
+
+/* INITIAL LOAD */
+loadMoreFeed().then(() => {
+  feedEl.children[0].focus();
+});
+
+/* -----------------------------------------------------
+   NAVIGATION
+-----------------------------------------------------*/
+document.addEventListener("keydown", (e) => {
+  if (inComments) return handleCommentsNav(e);
+  if (inDetail) return handleDetailNav(e);
+  handleFeedNav(e);
+});
+
+function handleFeedNav(e) {
+  const cards = feedEl.children;
+
+  if (e.key === "ArrowDown") {
+    feedIndex++;
+    if (feedIndex >= cards.length - 1) {
+      loadMoreFeed().then(() => cards[feedIndex].focus());
+    } else {
+      cards[feedIndex].focus();
+    }
+  }
+
+  if (e.key === "ArrowUp") {
+    feedIndex = Math.max(0, feedIndex - 1);
+    cards[feedIndex].focus();
+  }
+
+  if (e.key === "Enter") {
+    openDetail(feedIndex);
+  }
+}
+
+/* -----------------------------------------------------
+   DETAIL VIEW
+-----------------------------------------------------*/
+function openDetail(index) {
+  const item = feedItems[index];
+  inDetail = true;
+  currentVideoId = item.id;
+
+  document.getElementById("detail-title").textContent = item.title;
+  document.getElementById("detail-creator").textContent = item.author;
+  likesCount.textContent = "0";
+
+  videoPlayer.src = item.play_url;
+  videoPlayer.play();
+
+  detailEl.classList.remove("hidden");
+  document.body.classList.add("depth-focus");
+
+  detailEl.querySelector(".btn").focus();
+}
+
+function handleDetailNav(e) {
+  const btns = detailEl.querySelectorAll(".btn");
+
+  if (e.key === "ArrowRight") {
+    detailIndex = Math.min(detailIndex + 1, btns.length - 1);
+    btns[detailIndex].focus();
+  }
+
+  if (e.key === "ArrowLeft") {
+    detailIndex = Math.max(detailIndex - 1, 0);
+    btns[detailIndex].focus();
+  }
+
+  if (e.key === "Enter") {
+    const action = btns[detailIndex].dataset.action;
+    if (action === "play") togglePlay();
+    if (action === "like") likeVideo();
+    if (action === "comments") openComments(currentVideoId);
+    if (action === "back") closeDetail();
+  }
+
+  if (e.key === "Escape") closeDetail();
+}
+
+function togglePlay() {
+  if (videoPlayer.paused) videoPlayer.play();
+  else videoPlayer.pause();
+}
+
+function likeVideo() {
+  likesCount.textContent = Number(likesCount.textContent) + 1;
+  likesCount.classList.add("heart-pop");
+  setTimeout(() => likesCount.classList.remove("heart-pop"), 250);
+}
+
+function closeDetail() {
+  inDetail = false;
+  detailEl.classList.add("hidden");
+  videoPlayer.pause();
+  document.body.classList.remove("depth-focus");
+  feedEl.children[feedIndex].focus();
+}
+
+/* -----------------------------------------------------
+   COMMENTS
+-----------------------------------------------------*/
+async function openComments(videoId) {
+  inComments = true;
+  commentsCursor = 0;
+  commentsHasMore = true;
+  commentsFocusIndex = 0;
+  commentsList.innerHTML = "";
+
+  const data = await fetchComments(videoId, commentsCursor);
+  data.comments.forEach((c, i) => appendComment(c, i));
+  commentsCursor = data.cursor;
+  commentsHasMore = data.has_more;
+
+  commentsPanel.classList.remove("hidden");
+  commentsList.querySelector(".comment").focus();
+}
+
+function appendComment(c, index) {
+  const div = document.createElement("div");
+  div.className = "comment";
+  div.tabIndex = 0;
+  div.dataset.index = index;
+
+  div.innerHTML = `
+    <div class="comment-author">${c.user_name}</div>
+    <div class="comment-text">${c.text}</div>
+  `;
+
+  commentsList.appendChild(div);
+}
+
+async function handleCommentsNav(e) {
+  const comments = commentsList.querySelectorAll(".comment");
+
+  if (e.key === "ArrowDown") {
+    commentsFocusIndex++;
+    if (commentsFocusIndex >= comments.length - 1 && commentsHasMore) {
+      const data = await fetchComments(currentVideoId, commentsCursor);
+      data.comments.forEach((c, i) =>
+        appendComment(c, commentsFocusIndex + i)
+      );
+      commentsCursor = data.cursor;
+      commentsHasMore = data.has_more;
+    }
+    const target = commentsList.querySelector(
+      `.comment[data-index="${commentsFocusIndex}"]`
+    );
+    if (target) target.focus();
+  }
+
+  if (e.key === "ArrowUp") {
+    commentsFocusIndex = Math.max(0, commentsFocusIndex - 1);
+    const target = commentsList.querySelector(
+      `.comment[data-index="${commentsFocusIndex}"]`
+    );
+    if (target) target.focus();
+  }
+
+  if (e.key === "Escape") closeComments();
+
+  if (e.key === "Enter") {
+    const closeBtn = commentsPanel.querySelector('[data-action="close-comments"]');
+    if (document.activeElement === closeBtn) closeComments();
+  }
+}
+
+function closeComments() {
+  inComments = false;
+  commentsPanel.classList.add("hidden");
+  detailEl.querySelector(".btn").focus();
+}
+
+/* -----------------------------------------------------
+   PARALLAX (device tilt)
+-----------------------------------------------------*/
+window.addEventListener("deviceorientation", (e) => {
+  const tilt = Math.abs(e.gamma || 0) / 45; // 0–1
+  document.documentElement.style.setProperty("--tilt-blur", `${tilt * 4}px`);
+});
+</script>
+</body>
+</html>
